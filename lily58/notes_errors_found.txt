@@ -1,0 +1,3 @@
+Edit, tracers from Rb/R2 --> SDA both sides. Need to manually bridge that connection on sight of a REV1.1 PCB. 
+If new revision of pcb released check all connective tracers to verify that they actually are where they are supposed to be and do.
+Can not see any mention of this lacking thus far.
