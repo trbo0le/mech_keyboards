@@ -2,9 +2,7 @@
 #include "keymap_norwegian.h"
 
 // Add support for 8 layers instead of 4
-// enum layers, add as needed
-
-{
+enum layers{
     _DEFAULT = 0,
     _LOWER = 1,
     _RAISE = 2,
@@ -15,6 +13,26 @@
     _NORDIC_ADJUST = 7
 };
 
+// Custom keycodes for tap-hold functionality
+enum custom_keycodes {
+    LOWER_TAP = SAFE_RANGE,  // Tap=toggle ANSI/Nordic, Hold=lower layer
+    RAISE_TAP,               // Tap=toggle ANSI/Nordic, Hold=raise layer
+    TOGGLE_LAYOUT            // Simple toggle for testing  
+};
+
+// Track which custom keys are held for dual-key combinations
+static bool lower_held = false;
+static bool raise_held = false;
+static uint8_t current_layer_set = 0;  // 0=ANSI, 1=Nordic, future: 2=French, etc.
+static uint16_t lower_timer = 0;
+static uint16_t raise_timer = 0;
+static uint16_t lower_tap_timer = 0;
+static uint16_t raise_tap_timer = 0;
+static bool lower_tap_pending = false;
+static bool raise_tap_pending = false;
+
+#define MAX_LAYER_SETS 2  // Currently ANSI(0) and Nordic(1), increase for more sets
+
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     // ANSI LAYERS 0-3
     [0] = LAYOUT(
@@ -22,21 +40,21 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                     KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC,
         KC_LSFT, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                     KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,
         KC_LCTL, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_LBRC, KC_RBRC, KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
-                                   KC_LALT, KC_LGUI, MO(1),   KC_SPC,  KC_ENT,  KC_BSPC, MO(2),   TG(4)
+                                   KC_LALT, KC_LGUI, LOWER_TAP, KC_SPC, KC_ENT,  KC_BSPC, RAISE_TAP, KC_RALT
     ),
     [1] = LAYOUT(
-        KC_COMM, KC_6,    KC_7,    KC_8,    KC_9,    KC_0,                     KC_F6,   KC_LT,   KC_GT,   _______, _______, RALT(KC_2),
+        KC_COMM, KC_6,    KC_7,    KC_8,    KC_9,    KC_0,                     KC_F6,   KC_LT,   KC_GT,   _______, _______, KC_PIPE,
         KC_DOT,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                    KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,
         KC_GRV,  KC_EXLM, KC_AT,   KC_HASH, KC_DLR,  KC_PERC,                  KC_CIRC, KC_AMPR, KC_ASTR, KC_LPRN, KC_RPRN, KC_TILD,
         KC_I,    KC_M,    KC_P,    KC_PGUP, KC_PGDN, KC_ENT,  KC_Y,    _______, S(KC_QUOTE), KC_UNDS, KC_PLUS, KC_MINS, KC_RCBR, KC_BSLS,
-                                   KC_K,    KC_N,    _______, _______, _______, _______, MO(3),   _______
+                                   KC_K,    KC_N,    _______, _______, _______, _______, _______, _______
     ),
     [2] = LAYOUT(
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  _______, _______, _______, _______, _______, _______,
         KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    _______,
         KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                    RALT(KC_2), KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, XXXXXXX,
         KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, _______, KC_PLUS, KC_MINS, KC_EQL,  KC_LBRC, KC_RBRC, KC_BSLS,
-                                   _______, _______, MO(3),   _______, _______, _______, _______, _______
+                                   _______, _______, _______, _______, _______, _______, _______, _______
     ),
     [3] = LAYOUT(
         QK_BOOT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
@@ -52,34 +70,149 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                     KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    NO_ARNG,
         KC_LSFT, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                     KC_H,    KC_J,    KC_K,    KC_L,    NO_OSTR, NO_AE,
         KC_LCTL, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    NO_ARNG, NO_QUOT, KC_N,    KC_M,    KC_COMM, KC_DOT,  NO_MINS, KC_RSFT,
-                                   TG(4),   KC_LGUI, MO(5),   KC_SPC,  KC_ENT,  KC_BSPC, MO(6),   KC_RALT
+                                   KC_LALT, KC_LGUI, LOWER_TAP, KC_SPC, KC_ENT,  KC_BSPC, RAISE_TAP, KC_RALT
     ),
     [5] = LAYOUT(
-        NO_BSLS, KC_6,    KC_7,    KC_8,    KC_9,    KC_0,                     KC_F6,   NO_LABK, NO_RABK, _______, _______, NO_DQUO,
+        NO_BSLS, KC_6,    KC_7,    KC_8,    KC_9,    KC_0,                     KC_F6,   NO_LABK, NO_RABK, _______, KC_PIPE, NO_QUOT,
         KC_DOT,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                    KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,
         NO_GRV,  KC_EXLM, NO_AT,   NO_HASH, NO_CURR, KC_PERC,                  NO_CIRC, NO_AMPR, NO_ASTR, NO_LPRN, NO_RPRN, NO_TILD,
         KC_I,    KC_M,    KC_P,    KC_PGUP, KC_PGDN, KC_ENT,  KC_Y,    _______, NO_QUOT, NO_UNDS, NO_PLUS, NO_EQL,  NO_RCBR, NO_BSLS,
-                                   KC_K,    KC_N,    _______, _______, _______, _______, MO(7),   _______
+                                   KC_K,    KC_N,    _______, _______, _______, _______, _______, _______
     ),
     [6] = LAYOUT(
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  _______, _______, _______, _______, _______, _______,
         NO_TILD, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    _______,
         KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                    NO_DQUO, KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, XXXXXXX,
         KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, _______, NO_AT,   NO_LABK, NO_RABK, NO_LBRC, NO_RBRC, NO_BSLS,
-                                   _______, _______, MO(7),   _______, _______, _______, _______, _______
+                                   _______, _______, _______, _______, _______, _______, _______, _______
     ),
     [7] = LAYOUT(
         QK_BOOT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, RM_TOGG, RM_HUEU, RM_SATU, RM_VALU,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, RM_NEXT, RM_HUED, RM_SATD, RM_VALD,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, RM_NEXT, RM_HUED, RM_SATD, RM_VALD,  			
                                    _______, _______, _______, _______, _______, _______, _______, _______
     )
 };
 
+// Custom key processing for tap-hold functionality
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case LOWER_TAP:
+            if (record->event.pressed) {
+                // Key pressed - start timer
+                lower_timer = timer_read();
+                lower_held = true;
+            } else {
+                // Key released - check if it was a tap or hold
+                if (timer_elapsed(lower_timer) < 200) {
+                    // Short press = tap
+                    if (lower_tap_pending && timer_elapsed(lower_tap_timer) < 300) {
+                        // Double tap detected - decrease layer set
+                        lower_tap_pending = false;
+                        if (current_layer_set > 0) {
+                            current_layer_set--;
+                        } else {
+                            current_layer_set = MAX_LAYER_SETS - 1;  // Wrap to highest set
+                        }
+                        layer_move(current_layer_set * 4);  // Move to base of new set
+                    } else {
+                        // First tap - start waiting for second tap
+                        lower_tap_pending = true;
+                        lower_tap_timer = timer_read();
+                    }
+                }
+                // Release hold layers
+                lower_held = false;
+                layer_off(1);   layer_off(5);   // Lower layers
+                layer_off(9);   layer_off(13);  // Future lower layers
+                if (!raise_held) {
+                    layer_off(3);   layer_off(7);   // Adjust layers
+                    layer_off(11);  layer_off(15);  // Future adjust layers
+                }
+            }
+            return false;
+            
+        case RAISE_TAP:
+            if (record->event.pressed) {
+                // Key pressed - start timer
+                raise_timer = timer_read();
+                raise_held = true;
+            } else {
+                // Key released - check if it was a tap or hold
+                if (timer_elapsed(raise_timer) < 200) {
+                    // Short press = tap
+                    if (raise_tap_pending && timer_elapsed(raise_tap_timer) < 300) {
+                        // Double tap detected - increase layer set
+                        raise_tap_pending = false;
+                        if (current_layer_set < MAX_LAYER_SETS - 1) {
+                            current_layer_set++;
+                        } else {
+                            current_layer_set = 0;  // Wrap to lowest set
+                        }
+                        layer_move(current_layer_set * 4);  // Move to base of new set
+                    } else {
+                        // First tap - start waiting for second tap
+                        raise_tap_pending = true;
+                        raise_tap_timer = timer_read();
+                    }
+                }
+                // Release hold layers
+                raise_held = false;
+                layer_off(2);   layer_off(6);   // Raise layers
+                layer_off(10);  layer_off(14);  // Future raise layers
+                if (!lower_held) {
+                    layer_off(3);   layer_off(7);   // Adjust layers
+                    layer_off(11);  layer_off(15);  // Future adjust layers
+                }
+            }
+            return false;
+            
+        case TOGGLE_LAYOUT:
+            if (record->event.pressed) {
+                // Cycle through layer sets
+                current_layer_set = (current_layer_set + 1) % MAX_LAYER_SETS;
+                layer_move(current_layer_set * 4);
+            }
+            return false;
+    }
+    return true;
+}
+
+// Matrix scan function to handle hold detection and tap timeouts
+void matrix_scan_user(void) {
+    // Check if lower key has been held long enough to activate lower layer
+    if (lower_held && timer_elapsed(lower_timer) > 200) {
+        uint8_t lower_layer = (current_layer_set * 4) + 1;  // Base + 1 = lower layer
+        layer_on(lower_layer);
+        if (raise_held && timer_elapsed(raise_timer) > 200) {
+            uint8_t adjust_layer = (current_layer_set * 4) + 3;  // Base + 3 = adjust layer
+            layer_on(adjust_layer);
+        }
+    }
+    
+    // Check if raise key has been held long enough to activate raise layer
+    if (raise_held && timer_elapsed(raise_timer) > 200) {
+        uint8_t raise_layer = (current_layer_set * 4) + 2;  // Base + 2 = raise layer
+        layer_on(raise_layer);
+        if (lower_held && timer_elapsed(lower_timer) > 200) {
+            uint8_t adjust_layer = (current_layer_set * 4) + 3;  // Base + 3 = adjust layer
+            layer_on(adjust_layer);
+        }
+    }
+    
+    // Clear pending taps if timeout exceeded
+    if (lower_tap_pending && timer_elapsed(lower_tap_timer) > 300) {
+        lower_tap_pending = false;
+    }
+    if (raise_tap_pending && timer_elapsed(raise_tap_timer) > 300) {
+        raise_tap_pending = false;
+    }
+}
+
 #ifdef OLED_ENABLE
 
-// Use different function names to avoid conflicts with keyboard-level functions
+// OLED functionality 
 oled_rotation_t oled_init_user(oled_rotation_t rotation) {
     return OLED_ROTATION_270;
 }
@@ -234,17 +367,25 @@ void my_render_logo(void) {
 }
 
 void my_render_logo_text(void) {
-    uint8_t layer = get_highest_layer(layer_state);
+    uint8_t layer = get_highest_layer(layer_state | default_layer_state);
     
     // Show layer number and layout type
     oled_write_char('L', false);
-    oled_write_char('0' + layer, false);
+    oled_write_char('0' + layer, false);  // Show actual layer number for debugging
     oled_write_char(' ', false);
     
-    if (layer >= 4) {
-        oled_write_P(PSTR("NO"), false);  // Nordic
-    } else {
-        oled_write_P(PSTR("EN"), false);  // English/ANSI
+    // Show current layer set
+    switch (current_layer_set) {
+        case 0:
+            oled_write_P(PSTR("EN"), false);  // ANSI/English
+            break;
+        case 1:
+            oled_write_P(PSTR("NO"), false);  // Nordic/Norwegian
+            break;
+        default:
+            oled_write_char('0' + current_layer_set, false);  // Future: show set number
+            oled_write_char('?', false);
+            break;
     }
 }
 
