@@ -1,4 +1,4 @@
-		#include QMK_KEYBOARD_H
+#include QMK_KEYBOARD_H
 #include "keymap_norwegian.h"
 
 // Add support for 8 layers instead of 4
@@ -485,3 +485,4 @@ bool oled_task_user(void) {
 }
 
 #endif
+
