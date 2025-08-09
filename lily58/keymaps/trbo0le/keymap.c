@@ -1,4 +1,4 @@
-#include QMK_KEYBOARD_H
+		#include QMK_KEYBOARD_H
 #include "keymap_norwegian.h"
 
 // Add support for 8 layers instead of 4
@@ -12,7 +12,7 @@ enum layers{
     _NORDIC_RAISE = 6,
     _NORDIC_ADJUST = 7
 };
-
+	
 // Custom keycodes for tap-hold functionality
 enum custom_keycodes {
     LOWER_TAP = SAFE_RANGE,  // Tap=toggle ANSI/Nordic, Hold=lower layer
@@ -105,10 +105,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 lower_held = true;
             } else {
                 // Key released - check if it was a tap or hold
-                if (timer_elapsed(lower_timer) < 200) {
-                    // Short press = tap
+                if (timer_elapsed(lower_timer) < 90) {
+                    // Short press = tap, hold time to activate hold layer 
                     if (lower_tap_pending && timer_elapsed(lower_tap_timer) < 300) {
-                        // Double tap detected - decrease layer set
+                        // Double tap detected - decrease layer set time within to do two taps 
                         lower_tap_pending = false;
                         if (current_layer_set > 0) {
                             current_layer_set--;
@@ -140,7 +140,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 raise_held = true;
             } else {
                 // Key released - check if it was a tap or hold
-                if (timer_elapsed(raise_timer) < 200) {
+                if (timer_elapsed(raise_timer) < 90) {
                     // Short press = tap
                     if (raise_tap_pending && timer_elapsed(raise_tap_timer) < 300) {
                         // Double tap detected - increase layer set
@@ -182,20 +182,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 // Matrix scan function to handle hold detection and tap timeouts
 void matrix_scan_user(void) {
     // Check if lower key has been held long enough to activate lower layer
-    if (lower_held && timer_elapsed(lower_timer) > 200) {
+    if (lower_held && timer_elapsed(lower_timer) > 90) {
         uint8_t lower_layer = (current_layer_set * 4) + 1;  // Base + 1 = lower layer
         layer_on(lower_layer);
-        if (raise_held && timer_elapsed(raise_timer) > 200) {
+        if (raise_held && timer_elapsed(raise_timer) > 90) {
             uint8_t adjust_layer = (current_layer_set * 4) + 3;  // Base + 3 = adjust layer
             layer_on(adjust_layer);
         }
     }
     
     // Check if raise key has been held long enough to activate raise layer
-    if (raise_held && timer_elapsed(raise_timer) > 200) {
+    if (raise_held && timer_elapsed(raise_timer) > 90) {
         uint8_t raise_layer = (current_layer_set * 4) + 2;  // Base + 2 = raise layer
         layer_on(raise_layer);
-        if (lower_held && timer_elapsed(lower_timer) > 200) {
+        if (lower_held && timer_elapsed(lower_timer) > 90) {
             uint8_t adjust_layer = (current_layer_set * 4) + 3;  // Base + 3 = adjust layer
             layer_on(adjust_layer);
         }
@@ -205,7 +205,7 @@ void matrix_scan_user(void) {
     if (lower_tap_pending && timer_elapsed(lower_tap_timer) > 300) {
         lower_tap_pending = false;
     }
-    if (raise_tap_pending && timer_elapsed(raise_tap_timer) > 300) {
+    if (raise_tap_pending && timer_elapsed(raise_tap_timer) > 300	) {
         raise_tap_pending = false;
     }
 }
@@ -225,7 +225,7 @@ void my_render_mod_status_gui_alt(uint8_t modifiers) {
     static const char PROGMEM gui_off_1[] = {0x85, 0x86, 0};
     static const char PROGMEM gui_off_2[] = {0xa5, 0xa6, 0};
     static const char PROGMEM gui_on_1[] = {0x8d, 0x8e, 0};
-    static const char PROGMEM gui_on_2[] = {0xad, 0xae, 0};
+    static const char PROGMEM gui_on_2[] = {0xad, 0xae, 0};	
 
     static const char PROGMEM alt_off_1[] = {0x87, 0x88, 0};
     static const char PROGMEM alt_off_2[] = {0xa7, 0xa8, 0};
