@@ -1,33 +1,29 @@
-	  #include QMK_KEYBOARD_H
+#include QMK_KEYBOARD_H
 #include "keymap_norwegian.h"
 
-// Add support for 12 layers (3 sets of 4)
+// Add support for 8 layers instead of 4
 enum layers{
-    _NORWEGIAN = 0,
-    _NORWEGIAN_LOWER = 1,
-    _NORWEGIAN_RAISE = 2,
-    _NORWEGIAN_ADJUST = 3,
-    _GAMES_NORDIC = 4,
-    _GAMES_NORDIC_LOWER = 5,
-    _GAMES_NORDIC_RAISE = 6,
-    _GAMES_NORDIC_ADJUST = 7,
-    _ENGLISH = 8,
-    _LOWER = 9,
-    _RAISE = 10,
-    _ADJUST = 11
+    _DEFAULT = 0,
+    _LOWER = 1,
+    _RAISE = 2,
+    _ADJUST = 3,
+    _NORDIC = 4,
+    _NORDIC_LOWER = 5,
+    _NORDIC_RAISE = 6,
+    _NORDIC_ADJUST = 7
 };
-	
+
 // Custom keycodes for tap-hold functionality
 enum custom_keycodes {
-    LOWER_TAP = SAFE_RANGE,  // Tap=cycle layer sets, Hold=lower layer
-    RAISE_TAP,               // Tap=cycle layer sets, Hold=raise layer
+    LOWER_TAP = SAFE_RANGE,  // Tap=toggle ANSI/Nordic, Hold=lower layer
+    RAISE_TAP,               // Tap=toggle ANSI/Nordic, Hold=raise layer
     TOGGLE_LAYOUT            // Simple toggle for testing  
 };
 
 // Track which custom keys are held for dual-key combinations
 static bool lower_held = false;
 static bool raise_held = false;
-static uint8_t current_layer_set = 0;  // 0=Norwegian, 1=Games Nordic, 2=ANSI
+static uint8_t current_layer_set = 0;  // 0=ANSI, 1=Nordic, future: 2=French, etc.
 static uint16_t lower_timer = 0;
 static uint16_t raise_timer = 0;
 static uint16_t lower_tap_timer = 0;
@@ -35,120 +31,69 @@ static uint16_t raise_tap_timer = 0;
 static bool lower_tap_pending = false;
 static bool raise_tap_pending = false;
 
-#define MAX_LAYER_SETS 3  // Norwegian(0), Games Nordic(1), ANSI(2)
+#define MAX_LAYER_SETS 2  // Currently ANSI(0) and Nordic(1), increase for more sets
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-
-    // NORWEGIAN LAYERS 0-3
+    // ANSI LAYERS 0-3
     [0] = LAYOUT(
-        KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                      KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    NO_PLUS,
-        KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                      KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    NO_ARNG,
-        KC_LSFT, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                      KC_H,    KC_J,    KC_K,    KC_L,    NO_OSTR, NO_AE,
-        KC_LCTL, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B, LCTL(KC_F),LCTL(KC_F5),KC_N,  KC_M,    KC_COMM, KC_DOT,  NO_MINS, KC_RSFT,
-                                   KC_LALT, KC_LGUI, LOWER_TAP,KC_SPC, KC_ENT,  KC_BSPC, RAISE_TAP,KC_RALT
+        KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS,
+        KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                     KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC,
+        KC_LSFT, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                     KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,
+        KC_LCTL, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_LBRC, KC_RBRC, KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
+                                   KC_LALT, KC_LGUI, LOWER_TAP, KC_SPC, KC_ENT,  KC_BSPC, RAISE_TAP, KC_RALT
     ),
-    [1] = LAYOUT( 
-        NO_PIPE, NO_EXLM, NO_DQUO, NO_HASH, NO_CURR, KC_PERC,                   NO_AMPR, NO_SLSH, NO_LPRN, NO_RPRN, NO_EQL,  NO_QUES,
-        XXXXXXX, NO_AT,   NO_QUOT, NO_DLR,  NO_EURO, XXXXXXX,                   XXXXXXX, NO_BSLS, XXXXXXX, XXXXXXX, NO_ACUT, NO_GRV,
-        KC_GRV,  NO_LCBR, NO_RCBR, NO_CIRC, NO_TILD, NO_LABK,                   XXXXXXX, NO_ASTR, KC_COLN, KC_SCLN, XXXXXXX, KC_DEL,
-        _______, NO_LBRC, NO_RBRC, NO_LPRN, NO_RPRN, NO_RABK, _______, _______, XXXXXXX,  KC_UNDS, NO_PLUS, KC_LCBR, KC_RCBR, _______,
+    [1] = LAYOUT(
+        KC_COMM, KC_6,    KC_7,    KC_8,    KC_9,    KC_0,                     KC_F6,   KC_LT,   KC_GT,   _______, _______, KC_PIPE,
+        KC_DOT,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                    KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,
+        KC_GRV,  KC_EXLM, KC_AT,   KC_HASH, KC_DLR,  KC_PERC,                  KC_CIRC, KC_AMPR, KC_ASTR, KC_LPRN, KC_RPRN, KC_TILD,
+        KC_I,    KC_M,    KC_P,    KC_PGUP, KC_PGDN, KC_ENT,  KC_Y,    _______, S(KC_QUOTE), KC_UNDS, KC_PLUS, KC_MINS, KC_RCBR, KC_BSLS,
+                                   KC_K,    KC_N,    _______, _______, _______, _______, _______, _______
+    ),
+    [2] = LAYOUT(
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  _______, _______, _______, _______, _______, _______,
+        KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    _______,
+        KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                    RALT(KC_2), KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, XXXXXXX,
+        KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, _______, KC_PLUS, KC_MINS, KC_EQL,  KC_LBRC, KC_RBRC, KC_BSLS,
                                    _______, _______, _______, _______, _______, _______, _______, _______
     ),
-    [2] = LAYOUT( 
-        KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                     KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,
-        KC_F13,  KC_F14,  KC_F15,  KC_F16,  KC_F17,  KC_F18,                    KC_F19,  KC_F20,  KC_F21,  KC_F22,  KC_F23,  KC_F24,
-        _______, _______, _______, _______, _______, _______,                   KC_HOME, KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, KC_END,
-        _______, _______, _______, _______, _______, _______, _______, _______, KC_PGDN, KC_PGUP, KC_DEL,  KC_INS,  _______, _______,
-                                   _______, _______, _______, _______, _______, _______, _______, _______
-    ),
-    [3] = LAYOUT( 
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, RM_TOGG, RM_HUEU, RM_SATU, RM_VALU,
+    [3] = LAYOUT(
+        QK_BOOT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, RM_TOGG, RM_HUEU, RM_SATU, RM_VALU,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, RM_NEXT, RM_HUED, RM_SATD, RM_VALD,
-                                   _______, _______, _______, _______, _______, _______, _______, _______   
-    ), 
+                                   _______, _______, _______, _______, _______, _______, _______, _______
+    ),
 
-    // GAMES NORDIC LAYERS 4-7
-    [4] = LAYOUT(	
+    // NORDIC LAYERS 4-7
+    [4] = LAYOUT(
         KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    NO_PLUS,
         KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                     KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    NO_ARNG,
         KC_LSFT, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                     KC_H,    KC_J,    KC_K,    KC_L,    NO_OSTR, NO_AE,
-        KC_LCTL, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    NO_ARNG, NO_QUOT,KC_N,    KC_M,    KC_COMM, KC_DOT,  NO_MINS, KC_RSFT,
-                                   KC_LALT, KC_LGUI, LOWER_TAP,KC_SPC, KC_ENT, KC_BSPC, RAISE_TAP,KC_RALT
+        KC_LCTL, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    NO_ARNG, NO_QUOT, KC_N,    KC_M,    KC_COMM, KC_DOT,  NO_MINS, KC_RSFT,
+                                   KC_LALT, KC_LGUI, LOWER_TAP, KC_SPC, KC_ENT,  KC_BSPC, RAISE_TAP, KC_RALT
     ),
     [5] = LAYOUT(
-        NO_BSLS, KC_6,    KC_7,    KC_8,    KC_9,    KC_0,                      KC_F6,   NO_LABK, NO_RABK, _______, KC_PIPE, NO_QUOT,
-        KC_DOT,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                     KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,
-        NO_GRV,  KC_EXLM, NO_AT,   NO_HASH, NO_CURR, KC_PERC,                   NO_CIRC, NO_AMPR, NO_ASTR, NO_LPRN, NO_RPRN, NO_TILD,
+        NO_BSLS, KC_6,    KC_7,    KC_8,    KC_9,    KC_0,                     KC_F6,   NO_LABK, NO_RABK, _______, KC_PIPE, NO_QUOT,
+        KC_DOT,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,                    KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,
+        NO_GRV,  KC_EXLM, NO_AT,   NO_HASH, NO_CURR, KC_PERC,                  NO_CIRC, NO_AMPR, NO_ASTR, NO_LPRN, NO_RPRN, NO_TILD,
         KC_I,    KC_M,    KC_P,    KC_PGUP, KC_PGDN, KC_ENT,  KC_Y,    _______, NO_QUOT, NO_UNDS, NO_PLUS, NO_EQL,  NO_RCBR, NO_BSLS,
                                    KC_K,    KC_N,    _______, _______, _______, _______, _______, _______
     ),
     [6] = LAYOUT(
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   _______, _______, _______, _______, _______, _______,
-        NO_TILD, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                      KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    _______,
-        KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                     NO_DQUO, KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, XXXXXXX,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  _______, _______, _______, _______, _______, _______,
+        NO_TILD, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                     KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    _______,
+        KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                    NO_DQUO, KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, XXXXXXX,
         KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, _______, NO_AT,   NO_LABK, NO_RABK, NO_LBRC, NO_RBRC, NO_BSLS,
                                    _______, _______, _______, _______, _______, _______, _______, _______
     ),
     [7] = LAYOUT(
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, RM_TOGG, RM_HUEU, RM_SATU, RM_VALU,
+        QK_BOOT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                  XXXXXXX, XXXXXXX, RM_TOGG, RM_HUEU, RM_SATU, RM_VALU,
         XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, RM_NEXT, RM_HUED, RM_SATD, RM_VALD,  			
                                    _______, _______, _______, _______, _______, _______, _______, _______
-    ),
-
-    // ENGLISH LAYERS 8-11 
-    [8] = LAYOUT(
-        KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                      KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_MINS,
-        KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                      KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_LBRC,
-        KC_LSFT, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                      KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN, KC_QUOT,
-        KC_LCTL, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,     KC_LBRC,KC_RBRC, KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
-                                   KC_LALT, KC_LGUI, LOWER_TAP,KC_SPC, KC_ENT,  KC_BSPC, RAISE_TAP,KC_RALT
-    ),
-    [9] = LAYOUT(
-        _______, _______, _______, _______, _______, _______,                   _______, _______, _______, _______, _______, _______, 
-	KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                     KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12, 
-	KC_GRV,  KC_EXLM, KC_AT,   KC_HASH, KC_DLR,  KC_PERC,                   KC_CIRC, KC_AMPR, KC_ASTR, KC_LPRN, KC_RPRN, KC_TILD,
-	_______, _______, _______, _______, _______, _______, _______, _______, XXXXXXX, KC_UNDS, KC_PLUS, KC_LCBR,KC_RCBR, KC_PIPE, 
-                                   _______, _______, _______, _______, _______, _______, _______, _______
-    ),
-    [10] = LAYOUT(
-        _______, _______, _______, _______, _______, _______,                   _______, _______, _______, _______, _______, _______, 
-	KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                      KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    _______, 
-	KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5,   KC_F6,                     XXXXXXX, KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT, XXXXXXX, 
-	KC_F7,   KC_F8,   KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, _______, KC_PLUS, KC_MINS, KC_EQL,  KC_LBRC, KC_RBRC, KC_BSLS, 
-	                           _______, _______, _______, _______, _______, _______, _______, _______
-    ),
-    [11] = LAYOUT(
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                   XXXXXXX, XXXXXXX, RM_TOGG, RM_HUEU, RM_SATU, RM_VALU,
-        XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, RM_NEXT, RM_HUED, RM_SATD, RM_VALD,
-                                   _______, _______, _______, _______, _______, _______, _______, _______
-    ),
+    )
 };
-
-#ifdef ENCODER_ENABLE
-bool encoder_update_user(uint8_t index, bool clockwise) {
-    // 0 is left-half encoder
-    // 1 is right-half encoder
-    if (index == 0) {
-        tap_code(KC_0);
-    } else if (index == 1) {
-        tap_code(KC_1);
-    }
-
-    if (clockwise) {
-        tap_code16(KC_PLUS);
-    } else {
-        tap_code(KC_MINUS);
-    }
-
-    return false;
-}
-#endif
 
 // Custom key processing for tap-hold functionality
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
@@ -160,10 +105,10 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 lower_held = true;
             } else {
                 // Key released - check if it was a tap or hold
-                if (timer_elapsed(lower_timer) < 90) {
-                    // Short press = tap, hold time to activate hold layer 
+                if (timer_elapsed(lower_timer) < 200) {
+                    // Short press = tap
                     if (lower_tap_pending && timer_elapsed(lower_tap_timer) < 300) {
-                        // Double tap detected - decrease layer set time within to do two taps 
+                        // Double tap detected - decrease layer set
                         lower_tap_pending = false;
                         if (current_layer_set > 0) {
                             current_layer_set--;
@@ -179,9 +124,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
                 // Release hold layers
                 lower_held = false;
-                layer_off(1);   layer_off(5);   layer_off(9);   // Lower layers
+                layer_off(1);   layer_off(5);   // Lower layers
+                layer_off(9);   layer_off(13);  // Future lower layers
                 if (!raise_held) {
-                    layer_off(3);   layer_off(7);   layer_off(11);  // Adjust layers
+                    layer_off(3);   layer_off(7);   // Adjust layers
+                    layer_off(11);  layer_off(15);  // Future adjust layers
                 }
             }
             return false;
@@ -193,7 +140,7 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 raise_held = true;
             } else {
                 // Key released - check if it was a tap or hold
-                if (timer_elapsed(raise_timer) < 90) {
+                if (timer_elapsed(raise_timer) < 200) {
                     // Short press = tap
                     if (raise_tap_pending && timer_elapsed(raise_tap_timer) < 300) {
                         // Double tap detected - increase layer set
@@ -212,9 +159,11 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 }
                 // Release hold layers
                 raise_held = false;
-                layer_off(2);   layer_off(6);   layer_off(10);  // Raise layers
+                layer_off(2);   layer_off(6);   // Raise layers
+                layer_off(10);  layer_off(14);  // Future raise layers
                 if (!lower_held) {
-                    layer_off(3);   layer_off(7);   layer_off(11);  // Adjust layers
+                    layer_off(3);   layer_off(7);   // Adjust layers
+                    layer_off(11);  layer_off(15);  // Future adjust layers
                 }
             }
             return false;
@@ -233,20 +182,20 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
 // Matrix scan function to handle hold detection and tap timeouts
 void matrix_scan_user(void) {
     // Check if lower key has been held long enough to activate lower layer
-    if (lower_held && timer_elapsed(lower_timer) > 90) {
+    if (lower_held && timer_elapsed(lower_timer) > 200) {
         uint8_t lower_layer = (current_layer_set * 4) + 1;  // Base + 1 = lower layer
         layer_on(lower_layer);
-        if (raise_held && timer_elapsed(raise_timer) > 90) {
+        if (raise_held && timer_elapsed(raise_timer) > 200) {
             uint8_t adjust_layer = (current_layer_set * 4) + 3;  // Base + 3 = adjust layer
             layer_on(adjust_layer);
         }
     }
     
     // Check if raise key has been held long enough to activate raise layer
-    if (raise_held && timer_elapsed(raise_timer) > 90) {
+    if (raise_held && timer_elapsed(raise_timer) > 200) {
         uint8_t raise_layer = (current_layer_set * 4) + 2;  // Base + 2 = raise layer
         layer_on(raise_layer);
-        if (lower_held && timer_elapsed(lower_timer) > 90) {
+        if (lower_held && timer_elapsed(lower_timer) > 200) {
             uint8_t adjust_layer = (current_layer_set * 4) + 3;  // Base + 3 = adjust layer
             layer_on(adjust_layer);
         }
@@ -276,7 +225,7 @@ void my_render_mod_status_gui_alt(uint8_t modifiers) {
     static const char PROGMEM gui_off_1[] = {0x85, 0x86, 0};
     static const char PROGMEM gui_off_2[] = {0xa5, 0xa6, 0};
     static const char PROGMEM gui_on_1[] = {0x8d, 0x8e, 0};
-    static const char PROGMEM gui_on_2[] = {0xad, 0xae, 0};	
+    static const char PROGMEM gui_on_2[] = {0xad, 0xae, 0};
 
     static const char PROGMEM alt_off_1[] = {0x87, 0x88, 0};
     static const char PROGMEM alt_off_2[] = {0xa7, 0xa8, 0};
@@ -428,13 +377,10 @@ void my_render_logo_text(void) {
     // Show current layer set
     switch (current_layer_set) {
         case 0:
-            oled_write_P(PSTR("NO"), false);  // Norwegian
+            oled_write_P(PSTR("EN"), false);  // ANSI/English
             break;
         case 1:
-            oled_write_P(PSTR("GM"), false);  // Games Nordic
-            break;
-        case 2:
-            oled_write_P(PSTR("EN"), false);  // ANSI/English
+            oled_write_P(PSTR("NO"), false);  // Nordic/Norwegian
             break;
         default:
             oled_write_char('0' + current_layer_set, false);  // Future: show set number
@@ -470,21 +416,18 @@ void my_render_layer_state(void) {
 
     switch (get_highest_layer(layer_state | default_layer_state)) {
         case 1: // Lower
-        case 5: // Norwegian Lower  
-        case 9: // Games Nordic Lower
+        case 5: // Nordic Lower
             oled_write_P(lower_layer, false);
             break;
         case 2: // Raise  
-        case 6: // Norwegian Raise
-        case 10: // Games Nordic Raise
+        case 6: // Nordic Raise
             oled_write_P(raise_layer, false);
             break;
         case 3: // Adjust
-        case 7: // Norwegian Adjust
-        case 11: // Games Nordic Adjust
+        case 7: // Nordic Adjust
             oled_write_P(adjust_layer, false);
             break;
-        default: // All base layers
+        default: // Default and Nordic base
             oled_write_P(default_layer, false);
     }
 }

@@ -19,3 +19,6 @@
 #ifdef RGBLIGHT_ENABLE
 #   define RGBLIGHT_EFFECT_BREATHING
 #endif
+
+//add to config.h to ensure encoder data is synced between the halves
+#define SPLIT_ENCODER_ENABLE
