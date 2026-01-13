@@ -31,6 +31,10 @@ static uint16_t raise_tap_timer = 0;
 static bool lower_tap_pending = false;
 static bool raise_tap_pending = false;
 
+// Encoder debugging
+static uint8_t encoder_0_count = 0;
+static uint8_t encoder_1_count = 0;
+
 #define MAX_LAYER_SETS 2  // Currently ANSI(0) and Nordic(1), increase for more sets
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
@@ -210,6 +214,36 @@ void matrix_scan_user(void) {
     }
 }
 
+#ifdef ENCODER_ENABLE
+bool encoder_update_user(uint8_t index, bool clockwise) {
+    // Debug: Track encoder events
+    if (index == 0) {
+        encoder_0_count++;
+    } else if (index == 1) {
+        encoder_1_count++;
+    }
+
+    // Left encoder (index 0) - Volume control
+    if (index == 0) {
+        if (clockwise) {
+            tap_code(KC_VOLU);
+        } else {
+            tap_code(KC_VOLD);
+        }
+    }
+    // Right encoder (index 1) - Page up/down
+    else if (index == 1) {
+        if (clockwise) {
+            tap_code(KC_PGDN);
+        } else {
+            tap_code(KC_PGUP);
+        }
+    }
+
+    return false;  // Don't call encoder_update_kb
+}
+#endif
+
 #ifdef OLED_ENABLE
 
 // OLED functionality 
@@ -368,12 +402,12 @@ void my_render_logo(void) {
 
 void my_render_logo_text(void) {
     uint8_t layer = get_highest_layer(layer_state | default_layer_state);
-    
+
     // Show layer number and layout type
     oled_write_char('L', false);
     oled_write_char('0' + layer, false);  // Show actual layer number for debugging
     oled_write_char(' ', false);
-    
+
     // Show current layer set
     switch (current_layer_set) {
         case 0:
@@ -387,6 +421,25 @@ void my_render_logo_text(void) {
             oled_write_char('?', false);
             break;
     }
+}
+
+void my_render_encoder_debug(void) {
+    // Show which side this is
+    oled_write_P(PSTR("Side:"), false);
+    if (is_keyboard_master()) {
+        oled_write_P(PSTR("L"), false);
+    } else {
+        oled_write_P(PSTR("R"), false);
+    }
+    oled_write_P(PSTR("\n"), false);
+
+    // Show encoder counts for debugging
+    oled_write_P(PSTR("E0:"), false);
+    oled_write_char('0' + (encoder_0_count % 10), false);
+    oled_write_P(PSTR(" "), false);
+    oled_write_P(PSTR("E1:"), false);
+    oled_write_char('0' + (encoder_1_count % 10), false);
+    oled_write_P(PSTR("\n"), false);
 }
 
 void my_render_kb_LED_state(void) {
@@ -443,6 +496,8 @@ bool oled_task_user(void) {
         my_render_mod_status_gui_alt(get_mods()|get_oneshot_mods());
         my_render_mod_status_ctrl_shift(get_mods()|get_oneshot_mods());
         my_render_kb_LED_state();
+        my_render_space();
+        my_render_encoder_debug();  // Add encoder debug info
     } else {
         // Right side - original Aurora art
         static const char PROGMEM aurora_art[] = {
